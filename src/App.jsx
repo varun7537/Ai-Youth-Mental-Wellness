@@ -1,418 +1,3 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import * as THREE from 'three';
-
-// Three.js Background Component
-const ThreeBackground = () => {
-  const mountRef = useRef(null);
-  const sceneRef = useRef(null);
-  const rendererRef = useRef(null);
-  const particlesRef = useRef(null);
-
-  useEffect(() => {
-    if (!mountRef.current) return;
-
-    // Scene setup
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setClearColor(0x000000, 0);
-    mountRef.current.appendChild(renderer.domElement);
-
-    // Create floating particles
-    const particleCount = 50;
-    const positions = new Float32Array(particleCount * 3);
-    const colors = new Float32Array(particleCount * 3);
-
-    for (let i = 0; i < particleCount; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 20;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 20;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 20;
-
-      colors[i * 3] = 0.2 + Math.random() * 0.8;
-      colors[i * 3 + 1] = 0.6 + Math.random() * 0.4;
-      colors[i * 3 + 2] = 1.0;
-    }
-
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-    const material = new THREE.PointsMaterial({
-      size: 0.1,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.6,
-      blending: THREE.AdditiveBlending
-    });
-
-    const particles = new THREE.Points(geometry, material);
-    scene.add(particles);
-
-    camera.position.z = 5;
-    
-    sceneRef.current = scene;
-    rendererRef.current = renderer;
-    particlesRef.current = particles;
-
-    // Animation loop
-    const animate = () => {
-      requestAnimationFrame(animate);
-      
-      if (particlesRef.current) {
-        particlesRef.current.rotation.x += 0.001;
-        particlesRef.current.rotation.y += 0.002;
-      }
-      
-      renderer.render(scene, camera);
-    };
-    animate();
-
-    // Handle resize
-    const handleResize = () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    };
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (mountRef.current && renderer.domElement) {
-        mountRef.current.removeChild(renderer.domElement);
-      }
-      renderer.dispose();
-    };
-  }, []);
-
-  return <div ref={mountRef} className="fixed inset-0 -z-10" />;
-};
-
-// Motion wrapper for smooth transitions
-const MotionDiv = ({ children, className, ...props }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
-
-  return (
-    <div 
-      className={`transition-all duration-700 ease-out ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-      } ${className}`}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-};
-
-// AI Mindfulness Coach Component
-const AICoachView = () => {
-  const [messages, setMessages] = useState([
-    {
-      type: 'ai',
-      content: "Hello! I'm your personal mindfulness coach. I can help you with meditation guidance, breathing exercises, stress management, and wellness tips. How are you feeling today?",
-      timestamp: Date.now()
-    }
-  ]);
-  const [inputMessage, setInputMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [userProfile, setUserProfile] = useState({
-    stressLevel: 5,
-    experienceLevel: 'beginner',
-    preferredDuration: 10,
-    goals: []
-  });
-  const messagesEndRef = useRef(null);
-
-  // AI Response Generator
-  const generateAIResponse = useCallback((userMessage) => {
-    const lowerMessage = userMessage.toLowerCase();
-    
-    // Stress and anxiety responses
-    if (lowerMessage.includes('stress') || lowerMessage.includes('anxious') || lowerMessage.includes('worried')) {
-      return {
-        content: "I understand you're feeling stressed. Let's try a quick 4-7-8 breathing technique: Inhale for 4 counts, hold for 7, exhale for 8. This activates your parasympathetic nervous system and promotes calm. Would you like me to guide you through a longer meditation session?",
-        suggestions: ["Start 4-7-8 breathing", "5-minute stress relief", "Progressive muscle relaxation"]
-      };
-    }
-    
-    // Sleep-related responses
-    if (lowerMessage.includes('sleep') || lowerMessage.includes('insomnia') || lowerMessage.includes('tired')) {
-      return {
-        content: "Sleep troubles can be challenging. I recommend a bedtime routine: Try our Sleep Induction sound therapy with delta waves, practice body scan meditation, and avoid screens 1 hour before bed. Deep breathing helps signal your body it's time to rest.",
-        suggestions: ["Sleep meditation guide", "Body scan exercise", "Bedtime routine tips"]
-      };
-    }
-    
-    // Focus and concentration
-    if (lowerMessage.includes('focus') || lowerMessage.includes('concentrate') || lowerMessage.includes('distracted')) {
-      return {
-        content: "For better focus, try the Pomodoro technique with mindfulness: 25 minutes focused work, then 5 minutes of mindful breathing. Our Deep Focus sound therapy with beta waves can also enhance concentration. Regular meditation strengthens your attention muscle.",
-        suggestions: ["Deep focus session", "Attention training", "Mindful work breaks"]
-      };
-    }
-    
-    // Meditation guidance
-    if (lowerMessage.includes('meditat') || lowerMessage.includes('mindful')) {
-      return {
-        content: `Perfect! As a ${userProfile.experienceLevel}, I recommend starting with ${userProfile.preferredDuration}-minute sessions. Focus on breath awareness: notice the sensation of air flowing in and out. When thoughts arise, gently return to your breath without judgment.`,
-        suggestions: ["Start guided meditation", "Breathing techniques", "Advanced practices"]
-      };
-    }
-    
-    // Mood and emotions
-    if (lowerMessage.includes('sad') || lowerMessage.includes('depressed') || lowerMessage.includes('down')) {
-      return {
-        content: "I hear that you're going through a difficult time. Mindfulness can help by creating space between you and difficult emotions. Try loving-kindness meditation: send compassion to yourself first, then others. Remember, emotions are temporary visitors.",
-        suggestions: ["Loving-kindness meditation", "Emotional regulation", "Self-compassion practice"]
-      };
-    }
-    
-    // Anger management
-    if (lowerMessage.includes('angry') || lowerMessage.includes('frustrated') || lowerMessage.includes('irritated')) {
-      return {
-        content: "Anger is a natural emotion, but we can respond skillfully. Try the STOP technique: Stop what you're doing, Take a breath, Observe your feelings, Proceed mindfully. Box breathing for 2 minutes can also cool the emotional heat.",
-        suggestions: ["Anger cooling meditation", "STOP technique guide", "Emotional awareness"]
-      };
-    }
-    
-    // Gratitude and positivity
-    if (lowerMessage.includes('grateful') || lowerMessage.includes('happy') || lowerMessage.includes('positive')) {
-      return {
-        content: "Wonderful! Gratitude is a powerful practice for well-being. Try the 5-4-3-2-1 technique: Notice 5 things you see, 4 you can touch, 3 you hear, 2 you smell, 1 you taste. This grounds you in the present moment and cultivates appreciation.",
-        suggestions: ["Gratitude meditation", "Present moment awareness", "Joy cultivation"]
-      };
-    }
-    
-    // General wellness
-    if (lowerMessage.includes('wellness') || lowerMessage.includes('health') || lowerMessage.includes('balance')) {
-      return {
-        content: "Holistic wellness includes mental, physical, and emotional health. Consider: regular meditation practice, gentle movement, healthy sleep, meaningful connections, and time in nature. Small, consistent steps create lasting change.",
-        suggestions: ["Create wellness plan", "Mindful movement", "Life balance tips"]
-      };
-    }
-    
-    // Default responses for general queries
-    const generalResponses = [
-      {
-        content: "That's interesting. In mindfulness, we often find that our challenges become our greatest teachers. What would it feel like to approach this situation with curiosity rather than judgment?",
-        suggestions: ["Explore mindful curiosity", "Perspective shifting", "Acceptance practice"]
-      },
-      {
-        content: "Thank you for sharing that with me. Mindfulness teaches us to meet each moment with presence and compassion. Would you like to explore a specific technique that might help with what you're experiencing?",
-        suggestions: ["Breathing exercises", "Body awareness", "Thought observation"]
-      },
-      {
-        content: "I appreciate your openness. Remember, mindfulness isn't about eliminating difficult experiences, but changing our relationship with them. What small step could you take today toward greater peace?",
-        suggestions: ["Daily mindfulness habits", "Stress relief techniques", "Emotional wellness"]
-      }
-    ];
-    
-    return generalResponses[Math.floor(Math.random() * generalResponses.length)];
-  }, [userProfile]);
-
-  const handleSendMessage = useCallback(async () => {
-    if (!inputMessage.trim() || isLoading) return;
-
-    const userMsg = {
-      type: 'user',
-      content: inputMessage,
-      timestamp: Date.now()
-    };
-
-    setMessages(prev => [...prev, userMsg]);
-    setInputMessage('');
-    setIsLoading(true);
-
-    // Simulate AI thinking time
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(inputMessage);
-      const aiMsg = {
-        type: 'ai',
-        content: aiResponse.content,
-        suggestions: aiResponse.suggestions || [],
-        timestamp: Date.now()
-      };
-
-      setMessages(prev => [...prev, aiMsg]);
-      setIsLoading(false);
-    }, 1500);
-  }, [inputMessage, isLoading, generateAIResponse]);
-
-  const handleSuggestionClick = useCallback((suggestion) => {
-    setInputMessage(suggestion);
-  }, []);
-
-  const handleQuickStart = useCallback((type) => {
-    const quickStarts = {
-      stress: "I'm feeling stressed and need help calming down",
-      sleep: "I'm having trouble sleeping and need relaxation techniques",
-      focus: "I need help improving my focus and concentration",
-      mood: "I want to improve my mood and emotional well-being"
-    };
-    
-    setInputMessage(quickStarts[type]);
-  }, []);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  return (
-    <MotionDiv className="flex flex-col w-full max-w-4xl mx-auto px-4 h-full">
-      <div className="text-center mb-6 bg-slate-800/30 backdrop-blur-md rounded-2xl p-6 border border-slate-700/50">
-        <h2 className="text-2xl sm:text-3xl font-light text-slate-200 mb-2">AI Mindfulness Coach</h2>
-        <p className="text-sm sm:text-base text-slate-400">Your personal guide to mindfulness and well-being</p>
-      </div>
-
-      {/* Quick Start Options */}
-      <div className="mb-6">
-        <p className="text-sm text-slate-400 mb-3 text-center">Quick start options:</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {[
-            { key: 'stress', label: '😰 Stress Relief', color: 'from-red-400 to-orange-500' },
-            { key: 'sleep', label: '😴 Sleep Help', color: 'from-indigo-400 to-purple-500' },
-            { key: 'focus', label: '🎯 Focus Boost', color: 'from-green-400 to-blue-500' },
-            { key: 'mood', label: '😊 Mood Lift', color: 'from-yellow-400 to-pink-500' }
-          ].map((option) => (
-            <button
-              key={option.key}
-              onClick={() => handleQuickStart(option.key)}
-              className={`p-3 rounded-xl bg-gradient-to-r ${option.color} bg-opacity-10 border border-slate-600/50 hover:bg-opacity-20 transition-all duration-200 text-xs sm:text-sm font-medium text-slate-300 hover:text-white`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Chat Messages */}
-      <div className="flex-1 bg-slate-800/20 backdrop-blur-md rounded-2xl border border-slate-700/50 p-4 mb-4 overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-y-auto space-y-4 max-h-96">
-          {messages.map((message, index) => (
-            <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-xs sm:max-w-md lg:max-w-lg p-3 rounded-2xl ${
-                message.type === 'user'
-                  ? 'bg-cyan-500/20 text-cyan-100 border border-cyan-400/30'
-                  : 'bg-slate-700/50 text-slate-200 border border-slate-600/30'
-              }`}>
-                <p className="text-sm leading-relaxed">{message.content}</p>
-                
-                {message.suggestions && message.suggestions.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {message.suggestions.map((suggestion, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleSuggestionClick(suggestion)}
-                        className="px-2 py-1 text-xs bg-slate-600/50 hover:bg-slate-500/50 rounded-lg border border-slate-500/30 transition-colors duration-200"
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                
-                <div className="text-xs text-slate-400 mt-2">
-                  {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </div>
-              </div>
-            </div>
-          ))}
-          
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-slate-700/50 text-slate-200 border border-slate-600/30 p-3 rounded-2xl">
-                <div className="flex items-center space-x-2">
-                  <div className="flex space-x-1">
-                    {[0, 1, 2].map((i) => (
-                      <div
-                        key={i}
-                        className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"
-                        style={{ animationDelay: `${i * 0.2}s` }}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm">AI Coach is thinking...</span>
-                </div>
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input Area */}
-        <div className="mt-4 flex space-x-3">
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder="Share how you're feeling or ask for guidance..."
-            className="flex-1 px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400/50"
-            disabled={isLoading}
-          />
-          <button
-            onClick={handleSendMessage}
-            disabled={isLoading || !inputMessage.trim()}
-            className="px-6 py-3 bg-cyan-500/80 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-all duration-200 font-medium min-w-[80px]"
-          >
-            {isLoading ? '...' : 'Send'}
-          </button>
-        </div>
-      </div>
-
-      {/* User Profile Settings */}
-      <div className="bg-slate-800/20 backdrop-blur-md rounded-xl border border-slate-700/50 p-4">
-        <h3 className="text-lg font-medium text-slate-200 mb-3">Personalize Your Experience</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm text-slate-400 mb-1">Experience Level</label>
-            <select
-              value={userProfile.experienceLevel}
-              onChange={(e) => setUserProfile(prev => ({ ...prev, experienceLevel: e.target.value }))}
-              className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
-            >
-              <option value="beginner">Beginner</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="advanced">Advanced</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-slate-400 mb-1">Session Duration</label>
-            <select
-              value={userProfile.preferredDuration}
-              onChange={(e) => setUserProfile(prev => ({ ...prev, preferredDuration: parseInt(e.target.value) }))}
-              className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
-            >
-              <option value={5}>5 minutes</option>
-              <option value={10}>10 minutes</option>
-              <option value={15}>15 minutes</option>
-              <option value={20}>20 minutes</option>
-              <option value={30}>30 minutes</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-slate-400 mb-1">Current Stress Level</label>
-            <input
-              type="range"
-              min="1"
-              max="10"
-              value={userProfile.stressLevel}
-              onChange={(e) => setUserProfile(prev => ({ ...prev, stressLevel: parseInt(e.target.value) }))}
-              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
-            />
-            <div className="text-xs text-slate-400 text-center mt-1">{userProfile.stressLevel}/10</div>
-          </div>
-        </div>
-      </div>
-    </MotionDiv>
-  );
-};
-
 // Enhanced Meditation Component
 const MeditationView = () => {
   const [isMeditating, setIsMeditating] = useState(false);
@@ -1047,18 +632,19 @@ const NavigationBar = ({ activeView, setActiveView }) => {
     { id: 'meditation', label: 'Meditation', icon: '🧘' },
     { id: 'sound', label: 'Sound Therapy', icon: '🎵' },
     { id: 'cognitive', label: 'Cognitive', icon: '🧠' },
+    { id: 'journal', label: 'Journal', icon: '📔' },
     { id: 'coach', label: 'AI Coach', icon: '🤖' }
   ];
 
   return (
     <nav className="flex items-center justify-center mb-8">
       <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-2 border border-slate-700/50 shadow-2xl">
-        <div className="flex space-x-1">
+        <div className="flex space-x-1 overflow-x-auto">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveView(item.id)}
-              className={`relative px-3 sm:px-4 lg:px-6 py-3 rounded-xl text-xs sm:text-sm lg:text-base font-medium transition-all duration-300 flex items-center space-x-2 ${
+              className={`relative px-3 sm:px-4 lg:px-6 py-3 rounded-xl text-xs sm:text-sm lg:text-base font-medium transition-all duration-300 flex items-center space-x-2 whitespace-nowrap ${
                 activeView === item.id
                   ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/25 transform scale-105'
                   : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
@@ -1081,7 +667,7 @@ const NavigationBar = ({ activeView, setActiveView }) => {
 
 // Main App Component
 const App = () => {
-  const [activeView, setActiveView] = useState('coach');
+  const [activeView, setActiveView] = useState('journal');
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -1097,10 +683,12 @@ const App = () => {
         return <SoundTherapyView />;
       case 'cognitive':
         return <CognitiveExerciseView />;
+      case 'journal':
+        return <JournalView />;
       case 'coach':
         return <AICoachView />;
       default:
-        return <AICoachView />;
+        return <JournalView />;
     }
   };
 
@@ -1170,9 +758,838 @@ const App = () => {
           border: 2px solid #0891b2;
           box-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
         }
+        
+        .line-clamp-3 {
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
       `}</style>
     </div>
   );
 };
 
-export default App;
+export default App;import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import * as THREE from 'three';
+
+// Three.js Background Component
+const ThreeBackground = () => {
+  const mountRef = useRef(null);
+  const sceneRef = useRef(null);
+  const rendererRef = useRef(null);
+  const particlesRef = useRef(null);
+
+  useEffect(() => {
+    if (!mountRef.current) return;
+
+    // Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x000000, 0);
+    mountRef.current.appendChild(renderer.domElement);
+
+    // Create floating particles
+    const particleCount = 50;
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 20;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 20;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 20;
+
+      colors[i * 3] = 0.2 + Math.random() * 0.8;
+      colors[i * 3 + 1] = 0.6 + Math.random() * 0.4;
+      colors[i * 3 + 2] = 1.0;
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+      size: 0.1,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.6,
+      blending: THREE.AdditiveBlending
+    });
+
+    const particles = new THREE.Points(geometry, material);
+    scene.add(particles);
+
+    camera.position.z = 5;
+    
+    sceneRef.current = scene;
+    rendererRef.current = renderer;
+    particlesRef.current = particles;
+
+    // Animation loop
+    const animate = () => {
+      requestAnimationFrame(animate);
+      
+      if (particlesRef.current) {
+        particlesRef.current.rotation.x += 0.001;
+        particlesRef.current.rotation.y += 0.002;
+      }
+      
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    // Handle resize
+    const handleResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (mountRef.current && renderer.domElement) {
+        mountRef.current.removeChild(renderer.domElement);
+      }
+      renderer.dispose();
+    };
+  }, []);
+
+  return <div ref={mountRef} className="fixed inset-0 -z-10" />;
+};
+
+// Motion wrapper for smooth transitions
+const MotionDiv = ({ children, className, ...props }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  
+  useEffect(() => {
+    setIsVisible(true);
+  }, []);
+
+  return (
+    <div 
+      className={`transition-all duration-700 ease-out ${
+        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+      } ${className}`}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+};
+
+// Journal & Mood Tracker Component
+const JournalView = () => {
+  const [journalEntries, setJournalEntries] = useState([]);
+  const [currentEntry, setCurrentEntry] = useState('');
+  const [currentMood, setCurrentMood] = useState(5);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [viewMode, setViewMode] = useState('write'); // 'write', 'insights', 'history'
+  const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
+  const [generatedInsight, setGeneratedInsight] = useState('');
+  const [currentPrompt, setCurrentPrompt] = useState('');
+
+  const moods = [
+    { value: 1, emoji: '😔', label: 'Very Low', color: 'from-red-600 to-red-700' },
+    { value: 2, emoji: '😞', label: 'Low', color: 'from-orange-500 to-red-500' },
+    { value: 3, emoji: '😐', label: 'Neutral', color: 'from-yellow-500 to-orange-500' },
+    { value: 4, emoji: '🙂', label: 'Good', color: 'from-green-500 to-yellow-500' },
+    { value: 5, emoji: '😊', label: 'Great', color: 'from-blue-500 to-green-500' },
+    { value: 6, emoji: '😄', label: 'Excellent', color: 'from-purple-500 to-blue-500' },
+    { value: 7, emoji: '🤩', label: 'Amazing', color: 'from-pink-500 to-purple-500' }
+  ];
+
+  const reflectionPrompts = [
+    "What am I most grateful for today?",
+    "What challenged me today and how did I handle it?",
+    "What emotions did I experience and what triggered them?",
+    "What would I like to let go of today?",
+    "What brought me the most joy or peace today?",
+    "How did I practice self-compassion today?",
+    "What did I learn about myself today?",
+    "What moments made me feel most present?",
+    "How did I show kindness to others or myself?",
+    "What would I like to focus on tomorrow?"
+  ];
+
+  // Generate personalized insights based on journal entries
+  const generatePersonalizedInsight = useCallback((entries, mood) => {
+    if (entries.length === 0) return "Start writing to receive personalized insights about your mental wellness journey.";
+
+    const recentEntries = entries.slice(-7); // Last 7 entries
+    const avgMood = recentEntries.reduce((sum, entry) => sum + entry.mood, 0) / recentEntries.length;
+    const moodTrend = recentEntries.length > 1 ? 
+      (recentEntries[recentEntries.length - 1].mood - recentEntries[0].mood) : 0;
+
+    const commonWords = extractKeywords(recentEntries.map(e => e.text).join(' '));
+    const emotionalPatterns = analyzeEmotionalPatterns(recentEntries);
+
+    let insight = "";
+
+    // Mood analysis
+    if (avgMood >= 5) {
+      insight += "Your recent entries reflect a positive mindset and emotional wellbeing. ";
+      if (moodTrend > 0) {
+        insight += "There's an upward trend in your mood, suggesting effective coping strategies. ";
+      }
+    } else if (avgMood < 3) {
+      insight += "I notice you've been experiencing some challenging emotions lately. ";
+      insight += "Remember, difficult periods are temporary and seeking support is a sign of strength. ";
+    }
+
+    // Pattern recognition
+    if (commonWords.includes('stress') || commonWords.includes('anxious')) {
+      insight += "Stress appears to be a recurring theme. Consider incorporating more breathing exercises or progressive muscle relaxation into your routine. ";
+    }
+
+    if (commonWords.includes('grateful') || commonWords.includes('thankful')) {
+      insight += "Your practice of gratitude is beautiful and scientifically shown to improve mental wellbeing. ";
+    }
+
+    if (commonWords.includes('sleep') || commonWords.includes('tired')) {
+      insight += "Sleep patterns seem to be affecting your wellbeing. Consider our sleep meditation sessions before bedtime. ";
+    }
+
+    // Personalized recommendations
+    const recommendations = generateRecommendations(avgMood, commonWords, emotionalPatterns);
+    insight += recommendations;
+
+    return insight || "Keep writing consistently to unlock deeper insights about your emotional patterns and growth.";
+  }, []);
+
+  const extractKeywords = (text) => {
+    const words = text.toLowerCase().match(/\b\w+\b/g) || [];
+    const emotionalWords = ['happy', 'sad', 'angry', 'anxious', 'grateful', 'stressed', 'peaceful', 'excited', 'worried', 'calm', 'frustrated', 'joyful', 'tired', 'energetic', 'hopeful', 'overwhelmed', 'content', 'lonely', 'confident', 'nervous'];
+    return words.filter(word => emotionalWords.includes(word) || word.length > 4);
+  };
+
+  const analyzeEmotionalPatterns = (entries) => {
+    const patterns = {
+      positiveWords: 0,
+      negativeWords: 0,
+      neutralWords: 0
+    };
+
+    const positive = ['happy', 'grateful', 'peaceful', 'excited', 'joyful', 'calm', 'energetic', 'hopeful', 'content', 'confident'];
+    const negative = ['sad', 'angry', 'anxious', 'stressed', 'worried', 'frustrated', 'tired', 'overwhelmed', 'lonely', 'nervous'];
+
+    entries.forEach(entry => {
+      const words = entry.text.toLowerCase().match(/\b\w+\b/g) || [];
+      words.forEach(word => {
+        if (positive.includes(word)) patterns.positiveWords++;
+        else if (negative.includes(word)) patterns.negativeWords++;
+        else patterns.neutralWords++;
+      });
+    });
+
+    return patterns;
+  };
+
+  const generateRecommendations = (avgMood, keywords, patterns) => {
+    let recommendations = "\n\nPersonalized recommendations: ";
+
+    if (avgMood < 3) {
+      recommendations += "Try our loving-kindness meditation and consider reaching out to a friend or counselor. ";
+    } else if (avgMood > 5) {
+      recommendations += "You're doing great! Consider sharing your positive strategies with others. ";
+    }
+
+    if (patterns.negativeWords > patterns.positiveWords * 2) {
+      recommendations += "Practice reframing negative thoughts with our cognitive restructuring exercises. ";
+    }
+
+    if (keywords.includes('work') && keywords.includes('stress')) {
+      recommendations += "Try mindful work breaks every hour using our focus breathing techniques. ";
+    }
+
+    return recommendations;
+  };
+
+  const generateRandomPrompt = useCallback(() => {
+    const prompt = reflectionPrompts[Math.floor(Math.random() * reflectionPrompts.length)];
+    setCurrentPrompt(prompt);
+  }, []);
+
+  const saveEntry = useCallback(() => {
+    if (!currentEntry.trim()) return;
+
+    const newEntry = {
+      id: Date.now(),
+      date: selectedDate,
+      text: currentEntry,
+      mood: currentMood,
+      timestamp: new Date().toISOString(),
+      moodLabel: moods.find(m => m.value === currentMood)?.label || 'Unknown'
+    };
+
+    setJournalEntries(prev => [newEntry, ...prev]);
+    setCurrentEntry('');
+    setCurrentPrompt('');
+    setViewMode('history');
+  }, [currentEntry, selectedDate, currentMood, moods]);
+
+  const generateInsights = useCallback(() => {
+    setIsGeneratingInsight(true);
+    setTimeout(() => {
+      const insight = generatePersonalizedInsight(journalEntries, currentMood);
+      setGeneratedInsight(insight);
+      setIsGeneratingInsight(false);
+    }, 2000);
+  }, [journalEntries, currentMood, generatePersonalizedInsight]);
+
+  const getMoodStats = useMemo(() => {
+    if (journalEntries.length === 0) return null;
+
+    const last30Days = journalEntries.slice(0, 30);
+    const avgMood = last30Days.reduce((sum, entry) => sum + entry.mood, 0) / last30Days.length;
+    const moodCounts = {};
+    moods.forEach(mood => moodCounts[mood.label] = 0);
+    
+    last30Days.forEach(entry => {
+      const moodLabel = moods.find(m => m.value === entry.mood)?.label;
+      if (moodLabel) moodCounts[moodLabel]++;
+    });
+
+    const mostFrequent = Object.keys(moodCounts).reduce((a, b) => moodCounts[a] > moodCounts[b] ? a : b);
+
+    return {
+      average: avgMood.toFixed(1),
+      totalEntries: last30Days.length,
+      mostFrequent,
+      moodCounts
+    };
+  }, [journalEntries, moods]);
+
+  useEffect(() => {
+    generateRandomPrompt();
+  }, [generateRandomPrompt]);
+
+  const renderWriteView = () => (
+    <div className="space-y-6">
+      {/* Mood Selector */}
+      <div className="bg-slate-800/30 backdrop-blur-md rounded-2xl p-6 border border-slate-700/50">
+        <h3 className="text-lg font-medium text-slate-200 mb-4">How are you feeling today?</h3>
+        <div className="grid grid-cols-3 sm:grid-cols-7 gap-2 mb-4">
+          {moods.map((mood) => (
+            <button
+              key={mood.value}
+              onClick={() => setCurrentMood(mood.value)}
+              className={`p-3 rounded-xl transition-all duration-200 flex flex-col items-center space-y-1 ${
+                currentMood === mood.value
+                  ? `bg-gradient-to-br ${mood.color} shadow-lg transform scale-105`
+                  : 'bg-slate-700/50 hover:bg-slate-600/50'
+              }`}
+            >
+              <span className="text-2xl">{mood.emoji}</span>
+              <span className="text-xs text-center font-medium">{mood.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Reflection Prompt */}
+      {currentPrompt && (
+        <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 backdrop-blur-md rounded-2xl p-4 border border-purple-500/30">
+          <div className="flex items-start justify-between">
+            <div>
+              <h4 className="text-sm font-medium text-purple-300 mb-1">Reflection Prompt</h4>
+              <p className="text-slate-200">{currentPrompt}</p>
+            </div>
+            <button
+              onClick={generateRandomPrompt}
+              className="text-purple-400 hover:text-purple-300 p-1 rounded"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Journal Entry */}
+      <div className="bg-slate-800/30 backdrop-blur-md rounded-2xl p-6 border border-slate-700/50">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-medium text-slate-200">Today's Journal Entry</h3>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-1 text-slate-200 text-sm"
+          />
+        </div>
+        
+        <textarea
+          value={currentEntry}
+          onChange={(e) => setCurrentEntry(e.target.value)}
+          placeholder="Write about your thoughts, feelings, experiences, or reflections..."
+          className="w-full h-40 bg-slate-700/30 border border-slate-600/50 rounded-xl p-4 text-slate-200 placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+        />
+        
+        <div className="flex justify-between items-center mt-4">
+          <span className="text-sm text-slate-400">{currentEntry.length} characters</span>
+          <button
+            onClick={saveEntry}
+            disabled={!currentEntry.trim()}
+            className="px-6 py-2 bg-cyan-500/80 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 font-medium"
+          >
+            Save Entry
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderInsightsView = () => (
+    <div className="space-y-6">
+      {/* Mood Statistics */}
+      {getMoodStats && (
+        <div className="bg-slate-800/30 backdrop-blur-md rounded-2xl p-6 border border-slate-700/50">
+          <h3 className="text-lg font-medium text-slate-200 mb-4">Your Wellness Insights</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-cyan-400">{getMoodStats.average}</div>
+              <div className="text-sm text-slate-400">Average Mood</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-400">{getMoodStats.totalEntries}</div>
+              <div className="text-sm text-slate-400">Journal Entries</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-bold text-green-400">{getMoodStats.mostFrequent}</div>
+              <div className="text-sm text-slate-400">Most Common Mood</div>
+            </div>
+          </div>
+          
+          {/* Mood Distribution */}
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium text-slate-300">Mood Distribution</h4>
+            {Object.entries(getMoodStats.moodCounts).map(([mood, count]) => (
+              <div key={mood} className="flex items-center space-x-3">
+                <div className="w-16 text-xs text-slate-400">{mood}</div>
+                <div className="flex-1 bg-slate-700 rounded-full h-2">
+                  <div
+                    className="bg-gradient-to-r from-cyan-400 to-purple-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.max((count / getMoodStats.totalEntries) * 100, 2)}%` }}
+                  />
+                </div>
+                <div className="w-8 text-xs text-slate-400 text-right">{count}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* AI-Generated Insights */}
+      <div className="bg-slate-800/30 backdrop-blur-md rounded-2xl p-6 border border-slate-700/50">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-medium text-slate-200">Personalized AI Insights</h3>
+          <button
+            onClick={generateInsights}
+            disabled={isGeneratingInsight || journalEntries.length === 0}
+            className="px-4 py-2 bg-purple-500/80 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 text-sm font-medium"
+          >
+            {isGeneratingInsight ? 'Analyzing...' : 'Generate Insights'}
+          </button>
+        </div>
+        
+        {isGeneratingInsight ? (
+          <div className="flex items-center space-x-3 text-slate-400">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-400"></div>
+            <span>Analyzing your journal entries for patterns and insights...</span>
+          </div>
+        ) : generatedInsight ? (
+          <div className="prose prose-slate max-w-none">
+            <p className="text-slate-300 leading-relaxed whitespace-pre-line">{generatedInsight}</p>
+          </div>
+        ) : (
+          <p className="text-slate-400 italic">Click "Generate Insights" to receive personalized analysis of your journal entries and mood patterns.</p>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderHistoryView = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-medium text-slate-200">Journal History</h3>
+        <span className="text-sm text-slate-400">{journalEntries.length} entries</span>
+      </div>
+      
+      {journalEntries.length === 0 ? (
+        <div className="bg-slate-800/20 backdrop-blur-md rounded-2xl p-8 border border-slate-700/30 text-center">
+          <div className="text-4xl mb-4">📔</div>
+          <p className="text-slate-400">No journal entries yet. Start writing to track your wellness journey!</p>
+        </div>
+      ) : (
+        <div className="space-y-4 max-h-96 overflow-y-auto">
+          {journalEntries.map((entry) => {
+            const mood = moods.find(m => m.value === entry.mood);
+            return (
+              <div key={entry.id} className="bg-slate-800/30 backdrop-blur-md rounded-xl p-4 border border-slate-700/50">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-2xl">{mood?.emoji}</span>
+                    <div>
+                      <div className="text-sm font-medium text-slate-200">{entry.date}</div>
+                      <div className="text-xs text-slate-400">{mood?.label}</div>
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+                <p className="text-slate-300 text-sm leading-relaxed line-clamp-3">{entry.text}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <MotionDiv className="flex flex-col w-full max-w-4xl mx-auto px-4 h-full">
+      <div className="text-center mb-6 bg-slate-800/30 backdrop-blur-md rounded-2xl p-6 border border-slate-700/50">
+        <h2 className="text-2xl sm:text-3xl font-light text-slate-200 mb-2">Mindful Journal & Mood Tracker</h2>
+        <p className="text-sm sm:text-base text-slate-400">Reflect, track, and discover insights about your mental wellness journey</p>
+      </div>
+
+      {/* View Mode Tabs */}
+      <div className="flex bg-slate-800/30 backdrop-blur-md rounded-xl p-1 mb-6 border border-slate-700/50">
+        {[
+          { id: 'write', label: 'Write', icon: '✍️' },
+          { id: 'insights', label: 'Insights', icon: '📊' },
+          { id: 'history', label: 'History', icon: '📖' }
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setViewMode(tab.id)}
+            className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-lg transition-all duration-200 ${
+              viewMode === tab.id
+                ? 'bg-cyan-500 text-white shadow-lg'
+                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+            }`}
+          >
+            <span>{tab.icon}</span>
+            <span className="font-medium">{tab.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Content Area */}
+      <div className="flex-1 overflow-y-auto">
+        {viewMode === 'write' && renderWriteView()}
+        {viewMode === 'insights' && renderInsightsView()}
+        {viewMode === 'history' && renderHistoryView()}
+      </div>
+    </MotionDiv>
+  );
+};
+
+// AI Mindfulness Coach Component
+const AICoachView = () => {
+  const [messages, setMessages] = useState([
+    {
+      type: 'ai',
+      content: "Hello! I'm your personal mindfulness coach. I can help you with meditation guidance, breathing exercises, stress management, and wellness tips. How are you feeling today?",
+      timestamp: Date.now()
+    }
+  ]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [userProfile, setUserProfile] = useState({
+    stressLevel: 5,
+    experienceLevel: 'beginner',
+    preferredDuration: 10,
+    goals: []
+  });
+  const messagesEndRef = useRef(null);
+
+  // AI Response Generator
+  const generateAIResponse = useCallback((userMessage) => {
+    const lowerMessage = userMessage.toLowerCase();
+    
+    // Stress and anxiety responses
+    if (lowerMessage.includes('stress') || lowerMessage.includes('anxious') || lowerMessage.includes('worried')) {
+      return {
+        content: "I understand you're feeling stressed. Let's try a quick 4-7-8 breathing technique: Inhale for 4 counts, hold for 7, exhale for 8. This activates your parasympathetic nervous system and promotes calm. Would you like me to guide you through a longer meditation session?",
+        suggestions: ["Start 4-7-8 breathing", "5-minute stress relief", "Progressive muscle relaxation"]
+      };
+    }
+    
+    // Sleep-related responses
+    if (lowerMessage.includes('sleep') || lowerMessage.includes('insomnia') || lowerMessage.includes('tired')) {
+      return {
+        content: "Sleep troubles can be challenging. I recommend a bedtime routine: Try our Sleep Induction sound therapy with delta waves, practice body scan meditation, and avoid screens 1 hour before bed. Deep breathing helps signal your body it's time to rest.",
+        suggestions: ["Sleep meditation guide", "Body scan exercise", "Bedtime routine tips"]
+      };
+    }
+    
+    // Focus and concentration
+    if (lowerMessage.includes('focus') || lowerMessage.includes('concentrate') || lowerMessage.includes('distracted')) {
+      return {
+        content: "For better focus, try the Pomodoro technique with mindfulness: 25 minutes focused work, then 5 minutes of mindful breathing. Our Deep Focus sound therapy with beta waves can also enhance concentration. Regular meditation strengthens your attention muscle.",
+        suggestions: ["Deep focus session", "Attention training", "Mindful work breaks"]
+      };
+    }
+    
+    // Meditation guidance
+    if (lowerMessage.includes('meditat') || lowerMessage.includes('mindful')) {
+      return {
+        content: `Perfect! As a ${userProfile.experienceLevel}, I recommend starting with ${userProfile.preferredDuration}-minute sessions. Focus on breath awareness: notice the sensation of air flowing in and out. When thoughts arise, gently return to your breath without judgment.`,
+        suggestions: ["Start guided meditation", "Breathing techniques", "Advanced practices"]
+      };
+    }
+    
+    // Mood and emotions
+    if (lowerMessage.includes('sad') || lowerMessage.includes('depressed') || lowerMessage.includes('down')) {
+      return {
+        content: "I hear that you're going through a difficult time. Mindfulness can help by creating space between you and difficult emotions. Try loving-kindness meditation: send compassion to yourself first, then others. Remember, emotions are temporary visitors.",
+        suggestions: ["Loving-kindness meditation", "Emotional regulation", "Self-compassion practice"]
+      };
+    }
+    
+    // Anger management
+    if (lowerMessage.includes('angry') || lowerMessage.includes('frustrated') || lowerMessage.includes('irritated')) {
+      return {
+        content: "Anger is a natural emotion, but we can respond skillfully. Try the STOP technique: Stop what you're doing, Take a breath, Observe your feelings, Proceed mindfully. Box breathing for 2 minutes can also cool the emotional heat.",
+        suggestions: ["Anger cooling meditation", "STOP technique guide", "Emotional awareness"]
+      };
+    }
+    
+    // Gratitude and positivity
+    if (lowerMessage.includes('grateful') || lowerMessage.includes('happy') || lowerMessage.includes('positive')) {
+      return {
+        content: "Wonderful! Gratitude is a powerful practice for well-being. Try the 5-4-3-2-1 technique: Notice 5 things you see, 4 you can touch, 3 you hear, 2 you smell, 1 you taste. This grounds you in the present moment and cultivates appreciation.",
+        suggestions: ["Gratitude meditation", "Present moment awareness", "Joy cultivation"]
+      };
+    }
+    
+    // General wellness
+    if (lowerMessage.includes('wellness') || lowerMessage.includes('health') || lowerMessage.includes('balance')) {
+      return {
+        content: "Holistic wellness includes mental, physical, and emotional health. Consider: regular meditation practice, gentle movement, healthy sleep, meaningful connections, and time in nature. Small, consistent steps create lasting change.",
+        suggestions: ["Create wellness plan", "Mindful movement", "Life balance tips"]
+      };
+    }
+    
+    // Default responses for general queries
+    const generalResponses = [
+      {
+        content: "That's interesting. In mindfulness, we often find that our challenges become our greatest teachers. What would it feel like to approach this situation with curiosity rather than judgment?",
+        suggestions: ["Explore mindful curiosity", "Perspective shifting", "Acceptance practice"]
+      },
+      {
+        content: "Thank you for sharing that with me. Mindfulness teaches us to meet each moment with presence and compassion. Would you like to explore a specific technique that might help with what you're experiencing?",
+        suggestions: ["Breathing exercises", "Body awareness", "Thought observation"]
+      },
+      {
+        content: "I appreciate your openness. Remember, mindfulness isn't about eliminating difficult experiences, but changing our relationship with them. What small step could you take today toward greater peace?",
+        suggestions: ["Daily mindfulness habits", "Stress relief techniques", "Emotional wellness"]
+      }
+    ];
+    
+    return generalResponses[Math.floor(Math.random() * generalResponses.length)];
+  }, [userProfile]);
+
+  const handleSendMessage = useCallback(async () => {
+    if (!inputMessage.trim() || isLoading) return;
+
+    const userMsg = {
+      type: 'user',
+      content: inputMessage,
+      timestamp: Date.now()
+    };
+
+    setMessages(prev => [...prev, userMsg]);
+    setInputMessage('');
+    setIsLoading(true);
+
+    // Simulate AI thinking time
+    setTimeout(() => {
+      const aiResponse = generateAIResponse(inputMessage);
+      const aiMsg = {
+        type: 'ai',
+        content: aiResponse.content,
+        suggestions: aiResponse.suggestions || [],
+        timestamp: Date.now()
+      };
+
+      setMessages(prev => [...prev, aiMsg]);
+      setIsLoading(false);
+    }, 1500);
+  }, [inputMessage, isLoading, generateAIResponse]);
+
+  const handleSuggestionClick = useCallback((suggestion) => {
+    setInputMessage(suggestion);
+  }, []);
+
+  const handleQuickStart = useCallback((type) => {
+    const quickStarts = {
+      stress: "I'm feeling stressed and need help calming down",
+      sleep: "I'm having trouble sleeping and need relaxation techniques",
+      focus: "I need help improving my focus and concentration",
+      mood: "I want to improve my mood and emotional well-being"
+    };
+    
+    setInputMessage(quickStarts[type]);
+  }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  return (
+    <MotionDiv className="flex flex-col w-full max-w-4xl mx-auto px-4 h-full">
+      <div className="text-center mb-6 bg-slate-800/30 backdrop-blur-md rounded-2xl p-6 border border-slate-700/50">
+        <h2 className="text-2xl sm:text-3xl font-light text-slate-200 mb-2">AI Mindfulness Coach</h2>
+        <p className="text-sm sm:text-base text-slate-400">Your personal guide to mindfulness and well-being</p>
+      </div>
+
+      {/* Quick Start Options */}
+      <div className="mb-6">
+        <p className="text-sm text-slate-400 mb-3 text-center">Quick start options:</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {[
+            { key: 'stress', label: '😰 Stress Relief', color: 'from-red-400 to-orange-500' },
+            { key: 'sleep', label: '😴 Sleep Help', color: 'from-indigo-400 to-purple-500' },
+            { key: 'focus', label: '🎯 Focus Boost', color: 'from-green-400 to-blue-500' },
+            { key: 'mood', label: '😊 Mood Lift', color: 'from-yellow-400 to-pink-500' }
+          ].map((option) => (
+            <button
+              key={option.key}
+              onClick={() => handleQuickStart(option.key)}
+              className={`p-3 rounded-xl bg-gradient-to-r ${option.color} bg-opacity-10 border border-slate-600/50 hover:bg-opacity-20 transition-all duration-200 text-xs sm:text-sm font-medium text-slate-300 hover:text-white`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Chat Messages */}
+      <div className="flex-1 bg-slate-800/20 backdrop-blur-md rounded-2xl border border-slate-700/50 p-4 mb-4 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-y-auto space-y-4 max-h-96">
+          {messages.map((message, index) => (
+            <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-xs sm:max-w-md lg:max-w-lg p-3 rounded-2xl ${
+                message.type === 'user'
+                  ? 'bg-cyan-500/20 text-cyan-100 border border-cyan-400/30'
+                  : 'bg-slate-700/50 text-slate-200 border border-slate-600/30'
+              }`}>
+                <p className="text-sm leading-relaxed">{message.content}</p>
+                
+                {message.suggestions && message.suggestions.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {message.suggestions.map((suggestion, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSuggestionClick(suggestion)}
+                        className="px-2 py-1 text-xs bg-slate-600/50 hover:bg-slate-500/50 rounded-lg border border-slate-500/30 transition-colors duration-200"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="text-xs text-slate-400 mt-2">
+                  {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+            </div>
+          ))}
+          
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-slate-700/50 text-slate-200 border border-slate-600/30 p-3 rounded-2xl">
+                <div className="flex items-center space-x-2">
+                  <div className="flex space-x-1">
+                    {[0, 1, 2].map((i) => (
+                      <div
+                        key={i}
+                        className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"
+                        style={{ animationDelay: `${i * 0.2}s` }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm">AI Coach is thinking...</span>
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input Area */}
+        <div className="mt-4 flex space-x-3">
+          <input
+            type="text"
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            placeholder="Share how you're feeling or ask for guidance..."
+            className="flex-1 px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400/50"
+            disabled={isLoading}
+          />
+          <button
+            onClick={handleSendMessage}
+            disabled={isLoading || !inputMessage.trim()}
+            className="px-6 py-3 bg-cyan-500/80 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-all duration-200 font-medium min-w-[80px]"
+          >
+            {isLoading ? '...' : 'Send'}
+          </button>
+        </div>
+      </div>
+
+      {/* User Profile Settings */}
+      <div className="bg-slate-800/20 backdrop-blur-md rounded-xl border border-slate-700/50 p-4">
+        <h3 className="text-lg font-medium text-slate-200 mb-3">Personalize Your Experience</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Experience Level</label>
+            <select
+              value={userProfile.experienceLevel}
+              onChange={(e) => setUserProfile(prev => ({ ...prev, experienceLevel: e.target.value }))}
+              className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+            >
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Session Duration</label>
+            <select
+              value={userProfile.preferredDuration}
+              onChange={(e) => setUserProfile(prev => ({ ...prev, preferredDuration: parseInt(e.target.value) }))}
+              className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+            >
+              <option value={5}>5 minutes</option>
+              <option value={10}>10 minutes</option>
+              <option value={15}>15 minutes</option>
+              <option value={20}>20 minutes</option>
+              <option value={30}>30 minutes</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Current Stress Level</label>
+            <input
+              type="range"
+              min="1"
+              max="10"
+              value={userProfile.stressLevel}
+              onChange={(e) => setUserProfile(prev => ({ ...prev, stressLevel: parseInt(e.target.value) }))}
+              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
+            />
+            <div className="text-xs text-slate-400 text-center mt-1">{userProfile.stressLevel}/10</div>
+          </div>
+        </div>
+      </div>
+    </MotionDiv>
+  );
+};
